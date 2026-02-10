@@ -1,6 +1,6 @@
 <template>
+  <div class="container">
   <div class="page" @click="activeQuestion = null">
-
     <div class="quest-header" @click.stop>
       <input
           v-model="quest.title"
@@ -130,6 +130,7 @@
     <p v-if="message" class="msg">{{ message }}</p>
 
   </div>
+  </div>
 </template>
 
 <script>
@@ -181,7 +182,7 @@ export default {
     async submitQuest() {
       const res = await fetch("http://127.0.0.1:8000/create-quest", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
         body: JSON.stringify(this.quest)
       });
 
@@ -195,36 +196,42 @@ export default {
 </script>
 
 <style>
-body {
-  margin: 0;
+.container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
   background: #0b0f14;
+  min-height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
 }
+
 
 .page {
   max-width: 800px;
   margin: 40px auto;
-  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial,serif;
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, serif;
   color: #e5e7eb;
+
 }
 
 .quest-header {
   background: #111827;
   padding: 20px;
   border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   margin-bottom: 20px;
   border: 1px solid #1f2937;
 }
 
 .title-input {
-  width: 100%;
-  font-size: 22px;
-  font-weight: 600;
-  border: none;
-  outline: none;
-  background: transparent;
+  flex: 1;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #1f2937;
+  background: #030712;
   color: #e5e7eb;
-  margin-bottom: 10px;
 }
 
 .input-answer {
@@ -259,7 +266,7 @@ body {
 .question-card {
   background: #111827;
   border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   cursor: pointer;
   overflow: hidden;
   transition: transform 0.05s ease, border 0.1s ease;
@@ -272,7 +279,7 @@ body {
 
 .question-card.active {
   border: 1px solid #2563eb;
-  box-shadow: 0 0 0 1px rgba(37,99,235,0.3);
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.3);
 }
 
 .card-preview {
@@ -316,12 +323,12 @@ body {
 }
 
 .q-title {
-  font-size: 18px;
-  font-weight: 600;
-  background: transparent;
+  flex: 1;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #1f2937;
+  background: #030712;
   color: #e5e7eb;
-  border: none;
-  outline: none;
 }
 
 textarea {
@@ -359,7 +366,7 @@ textarea {
   background: #2563eb;
   color: white;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
 .add-question-btn:hover {
