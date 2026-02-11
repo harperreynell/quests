@@ -213,7 +213,6 @@ export default {
   margin: 40px auto;
   font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, serif;
   color: #e5e7eb;
-
 }
 
 .quest-header {
@@ -226,7 +225,7 @@ export default {
 }
 
 .title-input {
-  flex: 1;
+  width: 100%;
   padding: 8px;
   border-radius: 8px;
   border: 1px solid #1f2937;
