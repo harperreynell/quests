@@ -1,10 +1,20 @@
-<script setup>
+<script>
+export default {
+  methods: {
+    logout() {
+      localStorage.removeItem("user");
+      this.$router.push("/login");
+    }
+  }
+}
+
 </script>
 <template>
   <div class="app-layout">
     <nav class="navbar">
       <router-link to="/home">Home</router-link>
       <router-link to="/create-quest">Create Quest</router-link>
+      <button @click="logout">Logout</button>
     </nav>
 
     <router-view />

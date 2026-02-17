@@ -8,18 +8,18 @@
           class="title-input"
       />
 
-      <div class="meta-row">
-        <input
-            v-model="quest.author"
-            placeholder="Author"
-            class="meta-input"
-        />
-        <input
-            v-model="quest.date"
-            type="date"
-            class="meta-input"
-        />
-      </div>
+<!--      <div class="meta-row">-->
+<!--        <input-->
+<!--            v-model="quest.author"-->
+<!--            placeholder="Author"-->
+<!--            class="meta-input"-->
+<!--        />-->
+<!--        <input-->
+<!--            v-model="quest.date"-->
+<!--            type="date"-->
+<!--            class="meta-input"-->
+<!--        />-->
+<!--      </div>-->
     </div>
 
     <div class="questions">
@@ -180,6 +180,13 @@ export default {
     },
 
     async submitQuest() {
+      let today = new Date();
+      let dd = String(today.getDate()).padStart(2, '0');
+      let mm = String(today.getMonth() + 1).padStart(2, '0');
+      let yyyy = today.getFullYear();
+
+      today = mm + '/' + dd + '/' + yyyy;
+      this.quest.date = today
       const res = await fetch("http://127.0.0.1:8000/create-quest", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
@@ -190,6 +197,14 @@ export default {
       this.message = data.success
           ? "Quest created successfully!"
           : "Failed to create quest";
+    }
+  },
+  created() {
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (user) {
+      this.quest.author = user.username;
+    } else {
+      this.$router.push("/login");
     }
   }
 };
@@ -218,9 +233,10 @@ export default {
 .quest-header {
   background: #111827;
   padding: 20px;
+  display: flex;
   border-radius: 16px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  margin-bottom: 20px;
+  margin: 20px;
   border: 1px solid #1f2937;
 }
 
