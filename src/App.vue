@@ -14,7 +14,7 @@ export default {
     <nav class="navbar">
       <router-link to="/home">Home</router-link>
       <router-link to="/create-quest">Create Quest</router-link>
-      <button @click="logout">Logout</button>
+      <button class="primary" @click="logout">Logout</button>
     </nav>
 
     <router-view />
@@ -36,6 +36,8 @@ export default {
   background: #111827;
   border-bottom: 1px solid #1f2937;
   font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, serif;
+  align-items: center;
+  place-content: center;
 }
 
 .navbar a {

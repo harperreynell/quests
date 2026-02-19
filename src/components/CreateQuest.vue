@@ -7,19 +7,6 @@
           placeholder="Quest Title"
           class="title-input"
       />
-
-<!--      <div class="meta-row">-->
-<!--        <input-->
-<!--            v-model="quest.author"-->
-<!--            placeholder="Author"-->
-<!--            class="meta-input"-->
-<!--        />-->
-<!--        <input-->
-<!--            v-model="quest.date"-->
-<!--            type="date"-->
-<!--            class="meta-input"-->
-<!--        />-->
-<!--      </div>-->
     </div>
 
     <div class="questions">
