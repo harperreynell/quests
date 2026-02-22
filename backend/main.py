@@ -41,6 +41,17 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
+class FilledQuestion(BaseModel):
+    title: str
+    question: str
+    answer: str
+
+class FilledQuest(BaseModel):
+    title: str
+    date: str
+    question_list: List[FilledQuestion]
+    author: str
+
 @app.post("/create-quest")
 async def create_quest(quest: Quest):
     try:
@@ -93,6 +104,33 @@ async def login(data: LoginRequest):
     if data.username in USERS and USERS[data.username] == data.password:
         return {"success": True, "user": {"username": data.username}}
     return {"success": False}
+
+@app.post("/check-quest")
+async def check_quest(quest: FilledQuest):
+    empty_quest = None
+    answer_list = []
+
+    for i in range(len(QUEST_LIST)):
+        if QUEST_LIST[i].title == quest.title and QUEST_LIST[i].author == quest.author:
+            empty_quest = QUEST_LIST[i]
+            break
+
+    if empty_quest is None:
+        return JSONResponse({"success": False, "error": "Quest not found"})
+
+    for i, correct_question in enumerate(empty_quest.question_list):
+        if quest.question_list[i].answer == correct_question.correct_answers:
+            answer_list.append(True)
+        else:
+            answer_list.append(False)
+
+    score = sum(answer_list)
+
+    return JSONResponse({
+        "success": True,
+        "correctness": answer_list,
+        "score": score,
+    })
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
