@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import Home from "../components/Home.vue";
 import CreateQuest from "../components/CreateQuest.vue";
 import Login from "../components/Login.vue";
+import SolveQuest from "../components/SolveQuest.vue";
 
 const routes = [
     {
@@ -24,6 +25,11 @@ const routes = [
         path: "/login",
         name: "Login",
         component: Login
+    },
+    {
+        path: "/quest/:id",
+        name: "SolveQuest",
+        component: SolveQuest
     }
 ];
 
