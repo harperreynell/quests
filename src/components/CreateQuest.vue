@@ -82,12 +82,21 @@
               + Add Answer
             </button>
 
-            <input
+            <select
                 v-model="q.correct_answers"
-                placeholder="Correct Answer"
                 class="correct-input"
                 @click.stop
-            />
+            >
+              <option disabled value="">Select Correct Answer...</option>
+              <option
+                  v-for="(a, ai) in q.answers"
+                  :key="ai"
+                  :value="a"
+                  :disabled="!a.trim()"
+              >
+                {{ a ? a : `Empty Option ${ai + 1}` }}
+              </option>
+            </select>
 
             <button
                 class="danger"
@@ -167,6 +176,32 @@ export default {
     },
 
     async submitQuest() {
+      if (!this.quest.title.trim()) {
+        alert("You need to add a title for the quest.");
+        return;
+      }
+
+      if (this.quest.question_list.length === 0) {
+        alert("You need to add at least one question to the quest.");
+        return;
+      }
+
+      for (let i = 0; i < this.quest.question_list.length; i++) {
+        const q = this.quest.question_list[i];
+
+        if (!q.correct_answers.trim()) {
+          this.activeQuestion = i;
+          alert(`You need to add a correct answer for Question ${i + 1}.`);
+          return;
+        }
+
+        if (q.answers.length === 0) {
+          this.activeQuestion = i;
+          alert(`You need to add at least one answer option for Question ${i + 1}.`);
+          return;
+        }
+      }
+
       let today = new Date();
       let dd = String(today.getDate()).padStart(2, '0');
       let mm = String(today.getMonth() + 1).padStart(2, '0');
@@ -184,7 +219,13 @@ export default {
       this.message = data.success
           ? "Quest created successfully!"
           : "Failed to create quest";
-    }
+
+      if (data.success) {
+        this.quest.title = "";
+        this.quest.question_list = [];
+        this.activeQuestion = null;
+      }
+    },
   },
   created() {
     const user = JSON.parse(localStorage.getItem("user"));
