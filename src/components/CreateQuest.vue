@@ -200,7 +200,7 @@ export default {
 <style>
 .container {
   width: 100%;
-  display: flex;
+  //display: flex;
   justify-content: center;
   align-items: flex-start;
   background: #0b0f14;
@@ -211,7 +211,7 @@ export default {
 
 
 .page {
-  max-width: 800px;
+  max-width: 1100px;
   margin: 40px auto;
   font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, serif;
   color: #e5e7eb;
@@ -243,20 +243,6 @@ export default {
   color: #e5e7eb;
   padding: 8px;
   border-radius: 8px;
-}
-
-.meta-row {
-  display: flex;
-  gap: 10px;
-}
-
-.meta-input {
-  flex: 1;
-  padding: 8px;
-  border-radius: 8px;
-  border: 1px solid #1f2937;
-  background: #030712;
-  color: #e5e7eb;
 }
 
 .questions {

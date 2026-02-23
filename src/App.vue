@@ -17,7 +17,9 @@ export default {
       <button class="primary" @click="logout">Logout</button>
     </nav>
 
-    <router-view />
+    <div class="content">
+      <router-view />
+    </div>
   </div>
 </template>
 
@@ -27,6 +29,12 @@ export default {
   min-height: 100vh;
   background: #0b0f14;
   color: #e5e7eb;
+}
+
+.content {
+  max-width: 1200px;   /* ← MAKE THIS BIGGER if you want */
+  margin: 0 auto;
+  padding: 40px 32px;
 }
 
 .navbar {

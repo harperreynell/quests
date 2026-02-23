@@ -11,6 +11,9 @@ export default{
       const data = await res.json();
       this.quest_list = data['quest_list'];
     },
+    openQuest(index) {
+      this.$router.push(`/quest/${index}`);
+    }
   },
   created() {
     this.getQuest();
@@ -22,15 +25,17 @@ export default{
   <div class="container">
     <div class="page">
     <h1 class="heading">Welcome to quiz-it</h1>
-    <div
-        v-for="(q, qi) in quest_list"
-        :key="qi"
-        class="quest-card">
-      <h3>{{ q.title }}</h3>
-      <p>Author: {{ q.author }}</p>
-      <p>Date: {{ q.date }}</p>
-      <p>Questions: {{ q.question_list.length }}</p>
-    </div>
+      <div
+          v-for="(q, qi) in quest_list"
+          :key="qi"
+          class="quest-card"
+          @click="openQuest(qi)"
+      >
+        <h3>{{ q.title }}</h3>
+        <p>Author: {{ q.author }}</p>
+        <p>Date: {{ q.date }}</p>
+        <p>Questions: {{ q.question_list.length }}</p>
+      </div>
     </div>
   </div>
 </template>
@@ -48,8 +53,10 @@ export default{
   overflow: hidden;
   transition: transform 0.05s ease, border 0.1s ease;
   border: 1px solid #1f2937;
-  padding-left: 5%;
-  margin-bottom: 5%;
+  //padding-left: 5%;
+  //margin-bottom: 5%;
   width: 100%;
+  padding: 24px;
+  margin-bottom: 24px;
 }
 </style>
