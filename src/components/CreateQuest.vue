@@ -189,15 +189,24 @@ export default {
       for (let i = 0; i < this.quest.question_list.length; i++) {
         const q = this.quest.question_list[i];
 
-        if (!q.correct_answers.trim()) {
-          this.activeQuestion = i;
-          alert(`You need to add a correct answer for Question ${i + 1}.`);
-          return;
-        }
-
         if (q.answers.length === 0) {
           this.activeQuestion = i;
           alert(`You need to add at least one answer option for Question ${i + 1}.`);
+          return;
+        }
+
+        const cleanAnswers = q.answers.map(a => a.trim());
+        const uniqueAnswers = new Set(cleanAnswers);
+
+        if (uniqueAnswers.size !== cleanAnswers.length) {
+          this.activeQuestion = i;
+          alert(`Answers cannot repeat! Please remove duplicate options in Question ${i + 1}.`);
+          return;
+        }
+
+        if (!q.correct_answers.trim()) {
+          this.activeQuestion = i;
+          alert(`You need to add a correct answer for Question ${i + 1}.`);
           return;
         }
       }
@@ -208,7 +217,7 @@ export default {
       let yyyy = today.getFullYear();
 
       today = mm + '/' + dd + '/' + yyyy;
-      this.quest.date = today
+      this.quest.date = today;
 
       const questId = this.$route.params.id;
       const url = questId
@@ -234,24 +243,24 @@ export default {
         this.activeQuestion = null;
       }
     },
-  },
-  async created() {
-    const user = JSON.parse(localStorage.getItem("user"));
-    if (user) {
-      this.quest.author = user.username;
-    } else {
-      this.$router.push("/login");
-      return;
-    }
+    async created() {
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (user) {
+        this.quest.author = user.username;
+      } else {
+        this.$router.push("/login");
+        return;
+      }
 
-    const questId = this.$route.params.id;
-    if (questId) {
-      const res = await fetch('http://localhost:8000/get-quest-list');
-      const data = await res.json();
-      const existingQuest = data.quest_list.find(q => q._id === questId);
+      const questId = this.$route.params.id;
+      if (questId) {
+        const res = await fetch('http://localhost:8000/get-quest-list');
+        const data = await res.json();
+        const existingQuest = data.quest_list.find(q => q._id === questId);
 
-      if (existingQuest) {
-        this.quest = existingQuest;
+        if (existingQuest) {
+          this.quest = existingQuest;
+        }
       }
     }
   }
