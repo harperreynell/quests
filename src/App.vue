@@ -14,6 +14,7 @@ export default {
     <nav class="navbar">
       <router-link to="/home">Home</router-link>
       <router-link to="/create-quest">Create Quest</router-link>
+      <router-link to="/my-quests">My Quests</router-link> <router-link to="/create-quest">Create Quest</router-link>
       <button class="primary" @click="logout">Logout</button>
     </nav>
 

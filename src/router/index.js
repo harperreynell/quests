@@ -4,6 +4,7 @@ import Home from "../components/Home.vue";
 import CreateQuest from "../components/CreateQuest.vue";
 import Login from "../components/Login.vue";
 import SolveQuest from "../components/SolveQuest.vue";
+import MyQuests from '../components/MyQuests.vue';
 
 const routes = [
     {
@@ -30,6 +31,16 @@ const routes = [
         path: "/quest/:id",
         name: "SolveQuest",
         component: SolveQuest
+    },
+    {
+        path: '/my-quests',
+        name: 'MyQuests',
+        component: MyQuests
+    },
+    {
+        path: '/edit-quest/:id',
+        name: 'EditQuest',
+        component: CreateQuest
     }
 ];
 
