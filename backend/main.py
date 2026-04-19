@@ -172,5 +172,29 @@ async def get_job_status(job_id: str):
         }
     raise HTTPException(status_code=404)
 
+# New meth for My Quests
+@app.delete("/delete-quest/{doc_id}")
+async def delete_quest(doc_id: str):
+    try:
+        doc = quests_db[doc_id]
+        quests_db.delete(doc)
+        return JSONResponse({"success": True})
+    except Exception as e:
+        print(e)
+        return JSONResponse({"success": False, "error": str(e)})
+
+@app.put("/update-quest/{doc_id}")
+async def update_quest(doc_id: str, quest: Quest):
+    try:
+        doc = quests_db[doc_id]
+        doc["title"] = quest.title
+        doc["date"] = quest.date
+        doc["question_list"] = jsonable_encoder(quest.question_list)
+        quests_db.save(doc)
+        return JSONResponse({"success": True})
+    except Exception as e:
+        print(e)
+        return JSONResponse({"success": False, "error": str(e)})
+
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
