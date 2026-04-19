@@ -3,6 +3,7 @@ import jwt
 import pika
 import json
 import uuid
+import boto3
 from datetime import datetime, timedelta, timezone
 from typing import List
 
@@ -14,8 +15,9 @@ from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 
 import uvicorn
-
+from starlette.responses import JSONResponse
 from dotenv import load_dotenv
+
 load_dotenv()
 SECRET_KEY = os.getenv('SECRET_KEY')
 ALGORITHM = "HS256"
@@ -29,13 +31,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Схема для отримання токена з заголовка Authorization: Bearer <token>
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 couch = couchdb.Server('http://couchdb:couchdb@127.0.0.1:5984/')
 quests_db = couch['quests'] if 'quests' in couch else couch.create('quests')
 users_db = couch['users'] if 'users' in couch else couch.create('users')
 jobs_db = couch['jobs'] if 'jobs' in couch else couch.create('jobs')
+
+s3_client = boto3.client(
+    's3',
+    endpoint_url='http://127.0.0.1:9000',
+    aws_access_key_id='minioadmin',
+    aws_secret_access_key='minioadmin',
+    region_name='us-east-1'
+)
+BUCKET_NAME = 'quiz-results'
 
 def get_rabbitmq_channel():
     try:
@@ -87,17 +97,12 @@ def create_access_token(data: dict):
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     try:
-        # Спроба декодувати токен
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
-            print(" [!] Auth Error: Token payload missing 'sub'")
             raise HTTPException(status_code=401, detail="Invalid token")
         return username
-    except jwt.ExpiredSignatureError:
-        print(" [!] Auth Error: Token has expired")
-        raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.PyJWTError as e:
+    except Exception as e:
         print(f" [!] Auth Error: {str(e)}")
         raise HTTPException(status_code=401, detail="Could not validate credentials")
 
@@ -134,20 +139,19 @@ async def get_quest(quest_id: int):
 
 @app.post("/check-quest")
 async def check_quest(quest_filled: FilledQuest, username: str = Depends(get_current_user)):
+    print(f" [+] Received check-quest from user: {username}")
     job_id = str(uuid.uuid4())
     job_data = {
         "_id": job_id,
-        "status": "QUEUED",  # Встановлюємо QUEUED одразу
+        "status": "QUEUED",
         "user": username,
         "quest_title": quest_filled.title,
         "data": jsonable_encoder(quest_filled),
         "created_at": datetime.now(timezone.utc).isoformat()
     }
 
-    # Спочатку зберігаємо один раз статус QUEUED
     jobs_db.save(job_data)
 
-    # Тільки ПІСЛЯ успішного збереження публікуємо в чергу
     conn, ch = get_rabbitmq_channel()
     if ch:
         ch.basic_publish(
@@ -157,22 +161,34 @@ async def check_quest(quest_filled: FilledQuest, username: str = Depends(get_cur
             properties=pika.BasicProperties(delivery_mode=2)
         )
         conn.close()
+        print(f" [->] Job {job_id} sent to RabbitMQ")
         return {"success": True, "job_id": job_id}
     else:
         return {"success": False, "error": "Broker unavailable"}
 
 @app.get("/get-job-status/{job_id}")
 async def get_job_status(job_id: str):
-    if job_id in jobs_db:
-        job = jobs_db[job_id]
-        return {
-            "status": job.get("status"),
-            "result": job.get("result"),
-            "score": job.get("score")
-        }
-    raise HTTPException(status_code=404)
+    if job_id not in jobs_db:
+        raise HTTPException(status_code=404)
 
-# New meth for My Quests
+    job = jobs_db[job_id]
+    result = job.get("result", {})
+
+    if job.get("status") == "DONE" and result and "s3_key" in result:
+        try:
+            s3_obj = s3_client.get_object(Bucket=BUCKET_NAME, Key=result["s3_key"])
+            ai_analysis = s3_obj['Body'].read().decode('utf-8')
+            result["ai_analysis"] = ai_analysis
+        except Exception as e:
+            print(f" [!] S3 Read Error: {e}")
+            result["ai_analysis"] = "Помилка завантаження детального аналізу зі сховища."
+
+    return {
+        "status": job.get("status"),
+        "result": result,
+        "score": job.get("score")
+    }
+
 @app.delete("/delete-quest/{doc_id}")
 async def delete_quest(doc_id: str):
     try:
@@ -180,7 +196,6 @@ async def delete_quest(doc_id: str):
         quests_db.delete(doc)
         return JSONResponse({"success": True})
     except Exception as e:
-        print(e)
         return JSONResponse({"success": False, "error": str(e)})
 
 @app.put("/update-quest/{doc_id}")
@@ -193,7 +208,6 @@ async def update_quest(doc_id: str, quest: Quest):
         quests_db.save(doc)
         return JSONResponse({"success": True})
     except Exception as e:
-        print(e)
         return JSONResponse({"success": False, "error": str(e)})
 
 if __name__ == "__main__":
