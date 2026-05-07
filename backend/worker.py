@@ -2,155 +2,166 @@ import os
 import pika
 import json
 import time
-import boto3
 import couchdb
 import requests
+import boto3
 
+# Підключення до CouchDB
 couch = couchdb.Server('http://couchdb:couchdb@127.0.0.1:5984/')
 quests_db = couch['quests']
 jobs_db = couch['jobs']
 
+# Налаштування S3 (MinIO)
 s3_client = boto3.client(
     's3',
     endpoint_url='http://127.0.0.1:9000',
     aws_access_key_id='minioadmin',
-    aws_secret_access_key='minioadmin',
-    region_name='us-east-1'
+    aws_secret_access_key='minioadmin'
 )
 BUCKET_NAME = 'quiz-results'
 
-try:
-    s3_client.head_bucket(Bucket=BUCKET_NAME)
-except:
-    s3_client.create_bucket(Bucket=BUCKET_NAME)
-
+# Отримання API ключа
 apiKey = os.getenv('API_KEY')
+
+def send_update_to_backend(job_id, status, username):
+    """Надсилає сигнал бекенду для WebSocket-пуша"""
+    try:
+        credentials = pika.PlainCredentials('myuser', 'mypassword')
+        conn = pika.BlockingConnection(pika.ConnectionParameters(
+            host='127.0.0.1', port=5672, credentials=credentials
+        ))
+        ch = conn.channel()
+        ch.queue_declare(queue='job_updates', durable=True)
+        ch.basic_publish(
+            exchange='',
+            routing_key='job_updates',
+            body=json.dumps({"job_id": job_id, "status": status, "user": username})
+        )
+        conn.close()
+    except Exception as e:
+        print(f" [!] Failed to send WS update to backend: {e}")
 
 def call_gemini_ai(prompt):
     if not apiKey:
-        return "Помилка: API ключ не встановлено в системних змінних (API_KEY)."
+        print(" [!] Error: API_KEY environment variable is not set!")
+        return "Error: API_KEY is missing."
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}"
-    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key={apiKey}"
 
-    for delay in [1, 2, 4, 8, 16]:
-        try:
-            response = requests.post(url, json=payload, timeout=30)
-            if response.status_code == 200:
-                result = response.json()
-                return result['candidates'][0]['content']['parts'][0]['text']
-            else:
-                print(f"AI API Error ({response.status_code}): {response.text}")
-        except Exception as e:
-            print(f"AI Connection error: {e}")
-            time.sleep(delay)
-    return "Вибачте, ШІ не зміг проаналізувати відповіді зараз."
-
-def safe_db_update(job_id, update_func):
-    """Допоміжна функція для оновлення документа з обробкою конфліктів ревізій"""
-    for _ in range(5):
-        try:
-            job = jobs_db[job_id]
-            updated_job = update_func(job)
-            jobs_db.save(updated_job)
-            return True
-        except couchdb.http.ResourceConflict:
-            time.sleep(0.5)
-            continue
-    return False
+    try:
+        res = requests.post(
+            url,
+            json={"contents": [{"parts": [{"text": prompt}]}]},
+            timeout=30
+        )
+        if res.status_code == 200:
+            return res.json()['candidates'][0]['content']['parts'][0]['text']
+        else:
+            # Виводимо помилку в консоль воркера для діагностики
+            error_detail = res.text
+            print(f" [!] Gemini API Error ({res.status_code}): {error_detail}")
+            return f"AI Error: {res.status_code}"
+    except Exception as e:
+        print(f" [!] AI Request exception: {e}")
+        return "AI Connection Error"
 
 def process_task(ch, method, properties, body):
     try:
-        task_data = json.loads(body)
-        job_id = task_data['job_id']
+        data = json.loads(body)
+        job_id = data.get('job_id')
+        username = data.get('user')
+
+        print(f" [*] Starting Job: {job_id} (User: {username})")
 
         if job_id not in jobs_db:
             ch.basic_ack(delivery_tag=method.delivery_tag)
             return
 
-        def set_processing(doc):
-            doc['status'] = 'PROCESSING'
-            return doc
-
-        if not safe_db_update(job_id, set_processing):
-            print(f" [!] Failed to update job {job_id} to PROCESSING due to conflicts")
-            ch.basic_ack(delivery_tag=method.delivery_tag)
-            return
-
         job = jobs_db[job_id]
-        filled_data = job['data']
+        job['status'] = 'PROCESSING'
+        jobs_db.save(job)
 
+        send_update_to_backend(job_id, "PROCESSING", username)
+
+        # Отримуємо всі квізи для пошуку оригіналу
         all_quests = [quests_db[id] for id in quests_db]
-        original_quest = next((q for q in all_quests if q.get('title') == job.get('quest_title')), None)
+        original = next((q for q in all_quests if q.get('title') == job.get('quest_title')), None)
 
-        if not original_quest:
-            def set_error(doc):
-                doc['status'] = 'ERROR'
-                return doc
-            safe_db_update(job_id, set_error)
+        if not original:
+            print(f" [!] Quest not found for job {job_id}")
+            job['status'] = 'ERROR'
+            jobs_db.save(job)
             ch.basic_ack(delivery_tag=method.delivery_tag)
             return
 
-        results = []
-        score = 0
-        analysis_prompt = "Ти асистент викладача. Проаналізуй відповіді студента на тест. Для кожної помилки поясни, чому відповідь неправильна і як відповісти правильно.\n\n"
+        results, score = [], 0
+        prompt = "Ти асистент викладача. Проаналізуй відповіді студента. Поясни помилки:\n\n"
 
-        for i, q_filled in enumerate(filled_data['question_list']):
-            correct_q = original_quest['question_list'][i]
-            is_correct = q_filled['answer'] == correct_q['correct_answers']
-            results.append(is_correct)
-            if is_correct:
+        # Порівнюємо відповіді
+        filled_list = job['data']['question_list']
+        correct_list = original['question_list']
+
+        for i, q in enumerate(filled_list):
+            if i >= len(correct_list): break
+
+            correct_answer = correct_list[i]['correct_answers']
+            user_answer = q['answer']
+            is_ok = user_answer == correct_answer
+
+            results.append(is_ok)
+            if is_ok:
                 score += 1
             else:
-                analysis_prompt += f"Питання: {correct_q['question']}\nВідповідь студента: {q_filled['answer']}\nПравильна відповідь: {correct_q['correct_answers']}\n---\n"
+                prompt += f"Питання: {q['question']}\nВідповідь студента: {user_answer}\nПравильна відповідь: {correct_answer}\n---\n"
 
-        ai_explanation = "Всі відповіді правильні! Чудова робота."
+        send_update_to_backend(job_id, "ANALYZING_BY_AI", username)
+
+        # Викликаємо ШІ тільки якщо є помилки
         if score < len(results):
-            ai_explanation = call_gemini_ai(analysis_prompt)
-
-        s3_key = f"{job_id}_analysis.txt"
-        s3_client.put_object(
-            Bucket=BUCKET_NAME,
-            Key=s3_key,
-            Body=ai_explanation.encode('utf-8')
-        )
-
-        def set_done(doc):
-            doc['status'] = 'DONE'
-            doc['score'] = score
-            doc['result'] = {
-                "correctness": results,
-                "s3_key": s3_key
-            }
-            return doc
-
-        if safe_db_update(job_id, set_done):
-            print(f" [x] Job {job_id} processed. Result saved to S3: {s3_key}")
+            print(f" [->] Calling AI for Job {job_id}...")
+            ai_text = call_gemini_ai(prompt)
         else:
-            print(f" [!] Failed to save DONE status for {job_id}")
+            ai_text = "Всі відповіді правильні! Чудова робота."
 
+        # Зберігаємо результат у S3
+        s3_key = f"{job_id}.txt"
+        s3_client.put_object(Bucket=BUCKET_NAME, Key=s3_key, Body=ai_text.encode('utf-8'))
+
+        # Фінальне оновлення документа в БД
+        latest_job = jobs_db[job_id]
+        latest_job.update({
+            'status': 'DONE',
+            'score': score,
+            'result': {"correctness": results, "s3_key": s3_key}
+        })
+        jobs_db.save(latest_job)
+
+        print(f" [x] Job {job_id} completed. Score: {score}/{len(results)}")
+        send_update_to_backend(job_id, "DONE", username)
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
     except Exception as e:
-        print(f" [!] Unexpected error: {e}")
+        print(f" [!] Error processing task: {e}")
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
 def start_worker():
-    credentials = pika.PlainCredentials('myuser', 'mypassword')
-    parameters = pika.ConnectionParameters(host='127.0.0.1', port=5672, credentials=credentials)
+    try:
+        credentials = pika.PlainCredentials('myuser', 'mypassword')
+        connection = pika.BlockingConnection(pika.ConnectionParameters(
+            host='127.0.0.1', port=5672, credentials=credentials
+        ))
+        channel = connection.channel()
+        channel.queue_declare(queue='ai_tasks', durable=True)
+        channel.basic_qos(prefetch_count=1)
+        channel.basic_consume(queue='ai_tasks', on_message_callback=process_task)
 
-    while True:
-        try:
-            connection = pika.BlockingConnection(parameters)
-            channel = connection.channel()
-            channel.queue_declare(queue='ai_tasks', durable=True)
-            channel.basic_qos(prefetch_count=1)
-            channel.basic_consume(queue='ai_tasks', on_message_callback=process_task)
-            print(' [*] Worker is waiting for tasks...')
-            channel.start_consuming()
-        except Exception as e:
-            print(f" [!] Connection failed: {e}. Retrying in 5 seconds...")
-            time.sleep(5)
+        print(' [*] AI Worker is waiting for tasks. Press CTRL+C to exit.')
+        if not apiKey:
+            print(" [!] WARNING: API_KEY is not set. AI calls will fail.")
+
+        channel.start_consuming()
+    except Exception as e:
+        print(f" [!] Worker crashed: {e}")
 
 if __name__ == "__main__":
     start_worker()
