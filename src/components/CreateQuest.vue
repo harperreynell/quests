@@ -1,131 +1,120 @@
 <template>
   <div class="container">
-  <div class="page" @click="activeQuestion = null">
-    <div class="quest-header" @click.stop>
-      <input
-          v-model="quest.title"
-          placeholder="Quest Title"
-          class="title-input"
-      />
-    </div>
+    <div class="page" @click="activeQuestion = null">
+      <div class="quest-header" @click.stop>
+        <input
+            v-model="quest.title"
+            placeholder="Quest Title"
+            class="title-input"
+        />
+      </div>
 
-    <div class="questions">
-
-      <div
-          v-for="(q, qi) in quest.question_list"
-          :key="qi"
-          class="question-card"
-          :class="{ active: activeQuestion === qi }"
-          @click.stop="setActive(qi)"
-      >
-
+      <div class="questions">
         <div
-            class="card-preview"
-            v-if="activeQuestion !== qi"
+            v-for="(q, qi) in quest.question_list"
+            :key="qi"
+            class="question-card"
+            :class="{ active: activeQuestion === qi }"
+            @click.stop="setActive(qi)"
         >
-          <h3>{{ q.title || "Untitled Question" }}</h3>
-          <p class="preview-text">
-            {{ q.question || "Click to edit this question..." }}
-          </p>
-        </div>
-
-        <div
-            v-else
-            class="card-expanded"
-            @click.stop
-        >
-
-          <div class="card-header" @click="setActive(qi)">
+          <div class="card-preview" v-if="activeQuestion !== qi">
             <h3>{{ q.title || "Untitled Question" }}</h3>
-            <span class="arrow">▲</span>
+            <p class="preview-text">
+              {{ q.question || "Click to edit this question..." }}
+            </p>
           </div>
 
-          <div class="card-body">
-            <input
-                v-model="q.title"
-                placeholder="Question Title"
-                class="q-title"
-                @click.stop
-            />
-
-            <textarea
-                v-model="q.question"
-                placeholder="Full question..."
-                @click.stop
-            ></textarea>
-
-            <h4>Answers</h4>
-
-            <div
-                v-for="(a, ai) in q.answers"
-                :key="ai"
-                class="answer-row"
-            >
-              <input
-                  v-model="q.answers[ai]"
-                  placeholder="Answer"
-                  @click.stop
-                  class="input-answer"
-              />
-              <button
-                  class="small"
-                  @click.stop="removeAnswer(qi, ai)"
-              >
-                ✕
-              </button>
+          <div v-else class="card-expanded" @click.stop>
+            <div class="card-header" @click="setActive(qi)">
+              <h3>{{ q.title || "Untitled Question" }}</h3>
+              <span class="arrow">▲</span>
             </div>
 
-            <button
-                class="secondary"
-                @click.stop="addAnswer(qi)"
-            >
-              + Add Answer
-            </button>
+            <div class="card-body">
+              <input
+                  v-model="q.title"
+                  placeholder="Question Title"
+                  class="q-title"
+                  @click.stop
+              />
 
-            <select
-                v-model="q.correct_answers"
-                class="correct-input"
-                @click.stop
-            >
-              <option disabled value="">Select Correct Answer...</option>
-              <option
+              <textarea
+                  v-model="q.question"
+                  placeholder="Full question..."
+                  @click.stop
+              ></textarea>
+
+              <h4>Answers</h4>
+
+              <div
                   v-for="(a, ai) in q.answers"
                   :key="ai"
-                  :value="a"
-                  :disabled="!a.trim()"
+                  class="answer-row"
               >
-                {{ a ? a : `Empty Option ${ai + 1}` }}
-              </option>
-            </select>
+                <input
+                    v-model="q.answers[ai]"
+                    placeholder="Answer"
+                    @click.stop
+                    class="input-answer"
+                />
+                <button
+                    class="small"
+                    @click.stop="removeAnswer(qi, ai)"
+                >
+                  ✕
+                </button>
+              </div>
 
-            <button
-                class="danger"
-                @click.stop="removeQuestion(qi)"
-            >
-              Delete Question
-            </button>
+              <button
+                  class="secondary"
+                  @click.stop="addAnswer(qi)"
+              >
+                + Add Answer
+              </button>
+
+              <select
+                  v-model="q.correct_answers"
+                  class="correct-input"
+                  @click.stop
+              >
+                <option disabled value="">Select Correct Answer...</option>
+                <option
+                    v-for="(a, ai) in q.answers"
+                    :key="ai"
+                    :value="a"
+                    :disabled="!a.trim()"
+                >
+                  {{ a ? a : `Empty Option ${ai + 1}` }}
+                </option>
+              </select>
+
+              <button
+                  class="danger"
+                  @click.stop="removeQuestion(qi)"
+              >
+                Delete Question
+              </button>
+            </div>
           </div>
         </div>
       </div>
+
+      <button
+          class="add-question-btn"
+          @click.stop="addQuestion"
+      >
+        ＋
+      </button>
+
+      <button
+          class="primary submit"
+          @click.stop="submitQuest"
+      >
+        Create Quest
+      </button>
+
+      <p v-if="message" class="msg">{{ message }}</p>
     </div>
-
-    <button
-        class="add-question-btn"
-        @click.stop="addQuestion"
-    >
-      ＋
-    </button>
-
-    <button
-        class="primary submit"
-        @click.stop="submitQuest"
-    >
-      Create Quest
-    </button>
-
-    <p v-if="message" class="msg">{{ message }}</p>
-
-  </div>
   </div>
 </template>
 
@@ -148,16 +137,14 @@ export default {
       this.quest.question_list.push({
         title: "",
         question: "",
-        answers: [],
+        answers: [""],
         correct_answers: ""
       });
-
       this.activeQuestion = this.quest.question_list.length - 1;
     },
 
     removeQuestion(index) {
       this.quest.question_list.splice(index, 1);
-
       if (this.activeQuestion === index) {
         this.activeQuestion = null;
       }
@@ -186,82 +173,61 @@ export default {
         return;
       }
 
-      for (let i = 0; i < this.quest.question_list.length; i++) {
-        const q = this.quest.question_list[i];
-
-        if (q.answers.length === 0) {
-          this.activeQuestion = i;
-          alert(`You need to add at least one answer option for Question ${i + 1}.`);
-          return;
-        }
-
-        const cleanAnswers = q.answers.map(a => a.trim());
-        const uniqueAnswers = new Set(cleanAnswers);
-
-        if (uniqueAnswers.size !== cleanAnswers.length) {
-          this.activeQuestion = i;
-          alert(`Answers cannot repeat! Please remove duplicate options in Question ${i + 1}.`);
-          return;
-        }
-
-        if (!q.correct_answers.trim()) {
-          this.activeQuestion = i;
-          alert(`You need to add a correct answer for Question ${i + 1}.`);
-          return;
-        }
+      // Отримання токена з localStorage
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("Authorization token not found. Please log in again.");
+        this.$router.push("/login");
+        return;
       }
 
       let today = new Date();
       let dd = String(today.getDate()).padStart(2, '0');
       let mm = String(today.getMonth() + 1).padStart(2, '0');
       let yyyy = today.getFullYear();
+      this.quest.date = mm + '/' + dd + '/' + yyyy;
 
-      today = mm + '/' + dd + '/' + yyyy;
-      this.quest.date = today;
+      try {
+        const res = await fetch("http://127.0.0.1:8000/create-quest", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}` // Додавання JWT токена
+          },
+          body: JSON.stringify(this.quest)
+        });
 
-      const questId = this.$route.params.id;
-      const url = questId
-          ? `http://localhost:8000/update-quest/${questId}`
-          : "http://127.0.0.1:8000/create-quest";
+        if (res.status === 401) {
+          this.message = "Session expired. Please log in again.";
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+          this.$router.push("/login");
+          return;
+        }
 
-      const method = questId ? "PUT" : "POST";
+        const data = await res.json();
+        this.message = data.success
+            ? "Quest created successfully!"
+            : "Failed to create quest";
 
-      const res = await fetch(url, {
-        method: method,
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(this.quest)
-      });
-
-      const data = await res.json();
-      this.message = data.success
-          ? (questId ? "Quest updated successfully." : "Quest created successfully.")
-          : "Failed to save quest";
-
-      if (data.success && !questId) {
-        this.quest.title = "";
-        this.quest.question_list = [];
-        this.activeQuestion = null;
+        if (data.success) {
+          this.quest.title = "";
+          this.quest.question_list = [];
+          this.activeQuestion = null;
+        }
+      } catch (error) {
+        console.error("Error submitting quest:", error);
+        this.message = "Server error. Could not create quest.";
       }
     },
-    async created() {
-      const user = JSON.parse(localStorage.getItem("user"));
-      if (user) {
-        this.quest.author = user.username;
-      } else {
-        this.$router.push("/login");
-        return;
-      }
-
-      const questId = this.$route.params.id;
-      if (questId) {
-        const res = await fetch('http://localhost:8000/get-quest-list');
-        const data = await res.json();
-        const existingQuest = data.quest_list.find(q => q._id === questId);
-
-        if (existingQuest) {
-          this.quest = existingQuest;
-        }
-      }
+  },
+  created() {
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      this.quest.author = user.username;
+    } else {
+      this.$router.push("/login");
     }
   }
 };
@@ -270,7 +236,6 @@ export default {
 <style>
 .container {
   width: 100%;
-  //display: flex;
   justify-content: center;
   align-items: flex-start;
   background: #0b0f14;
@@ -278,7 +243,6 @@ export default {
   padding: 20px;
   box-sizing: border-box;
 }
-
 
 .page {
   max-width: 1100px;
@@ -293,7 +257,7 @@ export default {
   display: flex;
   border-radius: 16px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  margin: 20px;
+  margin-bottom: 20px;
   border: 1px solid #1f2937;
 }
 
@@ -313,6 +277,7 @@ export default {
   color: #e5e7eb;
   padding: 8px;
   border-radius: 8px;
+  width: 100%;
 }
 
 .questions {
@@ -396,6 +361,7 @@ textarea {
   padding: 8px;
   background: #030712;
   color: #e5e7eb;
+  resize: vertical;
 }
 
 .answer-row {
@@ -464,6 +430,7 @@ textarea {
   border: none;
   border-radius: 6px;
   cursor: pointer;
+  padding: 4px 8px;
 }
 
 .submit {

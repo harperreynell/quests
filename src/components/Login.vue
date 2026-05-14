@@ -1,23 +1,11 @@
 <template>
   <div class="container">
     <div class="login-box">
-        <h2>Login</h2>
-        <input
-            v-model="username"
-            placeholder="Enter username"
-            class="input"
-        />
-        <input
-            v-model="password"
-            type="password"
-            placeholder="Enter password"
-            class="input"
-        />
-        <button class="primary" @click="login">
-          Login
-        </button>
-
-        <p v-if="error" class="error">{{ error }}</p>
+      <h2>Login</h2>
+      <input v-model="username" placeholder="Enter username" class="input" />
+      <input v-model="password" type="password" placeholder="Enter password" class="input" />
+      <button class="primary" @click="handleLogin">Login</button>
+      <p v-if="error" class="error">{{ error }}</p>
     </div>
   </div>
 </template>
@@ -32,7 +20,7 @@ export default {
     };
   },
   methods: {
-    async login() {
+    async handleLogin() {
       const res = await fetch("http://localhost:8000/login", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
@@ -46,6 +34,7 @@ export default {
 
       if (data.success) {
         localStorage.setItem("user", JSON.stringify(data.user));
+        localStorage.setItem("token", data.access_token);
         this.$router.push("/home");
       } else {
         this.error = "Invalid credentials";
@@ -66,7 +55,6 @@ export default {
   padding: 30px;
   margin: auto;
 }
-
 .input {
   width: 300px;
   padding: 10px;
@@ -76,9 +64,5 @@ export default {
   background: #030712;
   color: #e5e7eb;
 }
-
-.error {
-  color: #ef4444;
-}
-
+.error { color: #ef4444; }
 </style>
